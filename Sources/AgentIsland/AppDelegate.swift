@@ -63,6 +63,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotKeys = HotKeys(store: store)
         hotKeys?.register()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.runOnboardingIfNeeded()
+        }
         server = EventServer(store: store)
         server?.start()
         setupPanel()
@@ -73,6 +76,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         ) { [weak self] _ in
             self?.setupPanel()
+        }
+    }
+
+    private func runOnboardingIfNeeded() {
+        guard runsAsBundle else { return }
+        let key = "onboardingDone"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        let claude = AgentSetup.claudeStatus()
+        let codex = AgentSetup.codexStatus()
+        guard claude == .notConnected || codex == .notConnected else { return }
+        let agents = codex == .notConnected ? "Claude Code and Codex sessions" : "Claude Code sessions"
+        let alert = NSAlert()
+        alert.messageText = "Connect your agents?"
+        alert.informativeText = "Agent Island adds hook entries so your \(agents) appear on the island — finishes, questions, and permission prompts. Existing settings are preserved and a backup is made first. You can disconnect any time in Settings."
+        alert.addButton(withTitle: "Connect")
+        alert.addButton(withTitle: "Not Now")
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            if claude == .notConnected { _ = try? AgentSetup.connectClaude() }
+            if codex == .notConnected { _ = try? AgentSetup.connectCodex() }
         }
     }
 

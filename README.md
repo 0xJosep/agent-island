@@ -24,7 +24,17 @@ No dock icon. No window to manage. Just your notch, doing something useful for o
 
 1. **[Download the latest dmg](https://github.com/0xJosep/agent-island/releases/latest)** (universal — Apple Silicon & Intel)
 2. Drag **Agent Island** to Applications, then **right-click → Open** the first time (it's ad-hoc signed, not notarized)
-3. Connect your agents below — 30 seconds each
+3. Click **Connect** when it offers to wire up Claude Code and Codex — that's it
+
+Or with Homebrew:
+
+```sh
+brew install --cask 0xJosep/tap/agent-island --no-quarantine
+```
+
+(`--no-quarantine` skips the right-click dance for the unsigned app.)
+
+Prefer manual setup, or connecting other agents? Everything below.
 
 ## Connect Claude Code
 

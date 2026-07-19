@@ -8,6 +8,10 @@ enum AgentSetup {
         case manualSetupNeeded
     }
 
+    static var defaultHome: String {
+        ProcessInfo.processInfo.environment["AGENT_ISLAND_HOME"] ?? NSHomeDirectory()
+    }
+
     static let hookEvents = [
         "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart",
         "SubagentStop", "Stop", "Notification", "SessionEnd", "PermissionRequest",
@@ -28,7 +32,7 @@ enum AgentSetup {
             .path
     }
 
-    static func claudeStatus(home: String = NSHomeDirectory()) -> Status {
+    static func claudeStatus(home: String = defaultHome) -> Status {
         guard let hooks = loadSettings(home: home)["hooks"] as? [String: Any] else { return .notConnected }
         for value in hooks.values {
             guard let entries = value as? [[String: Any]] else { continue }
@@ -38,7 +42,7 @@ enum AgentSetup {
     }
 
     @discardableResult
-    static func connectClaude(home: String = NSHomeDirectory(), scriptsDir: String = scriptsDirectory) throws -> Status {
+    static func connectClaude(home: String = defaultHome, scriptsDir: String = scriptsDirectory) throws -> Status {
         var root = try loadSettingsStrict(home: home)
         var hooks = root["hooks"] as? [String: Any] ?? [:]
         for event in hookEvents {
@@ -58,7 +62,7 @@ enum AgentSetup {
     }
 
     @discardableResult
-    static func disconnectClaude(home: String = NSHomeDirectory()) throws -> Status {
+    static func disconnectClaude(home: String = defaultHome) throws -> Status {
         guard FileManager.default.fileExists(atPath: claudeSettingsPath(home: home)) else { return .notConnected }
         var root = try loadSettingsStrict(home: home)
         if var hooks = root["hooks"] as? [String: Any] {
@@ -92,7 +96,7 @@ enum AgentSetup {
         return .notConnected
     }
 
-    static func codexStatus(home: String = NSHomeDirectory()) -> Status {
+    static func codexStatus(home: String = defaultHome) -> Status {
         guard codexInstalled(home: home) else { return .notInstalled }
         let lines = codexLines(home: home)
         if lines.contains(where: isAgentIslandNotify) { return .connected }
@@ -101,7 +105,7 @@ enum AgentSetup {
     }
 
     @discardableResult
-    static func connectCodex(home: String = NSHomeDirectory(), scriptsDir: String = scriptsDirectory) throws -> Status {
+    static func connectCodex(home: String = defaultHome, scriptsDir: String = scriptsDirectory) throws -> Status {
         guard codexInstalled(home: home) else { return .notInstalled }
         let lines = codexLines(home: home)
         if lines.contains(where: isAgentIslandNotify) { return .connected }
@@ -114,7 +118,7 @@ enum AgentSetup {
     }
 
     @discardableResult
-    static func disconnectCodex(home: String = NSHomeDirectory()) throws -> Status {
+    static func disconnectCodex(home: String = defaultHome) throws -> Status {
         guard codexInstalled(home: home) else { return .notInstalled }
         let path = codexConfigPath(home: home)
         guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return .notConnected }
