@@ -48,6 +48,7 @@ struct PermissionItem: Identifiable, Equatable {
     let title: String
     let detail: String
     let command: String
+    let preview: String
 }
 
 struct UsageBar: Equatable {
@@ -67,6 +68,7 @@ final class SessionStore: ObservableObject {
     private var collapseWork: DispatchWorkItem?
     private var lastSound = Date.distantPast
     private var tombstones: [String: Date] = [:]
+    private var snoozedUntil: [String: Date] = [:]
 
     var isOpen: Bool {
         pinnedOpen || !permissions.isEmpty || (hovering && !sessions.isEmpty)
@@ -148,20 +150,24 @@ final class SessionStore: ObservableObject {
 
         switch event.kind {
         case "finished":
-            if !frontmostMatches(event.id) {
+            if frontmostMatches(event.id) {
+                EventLog.shared.log("event", "finished suppressed frontmost \(event.id.prefix(8))")
+            } else if let reason = muteReason(event.id) {
+                EventLog.shared.log("event", "finished suppressed (\(reason)) \(event.id.prefix(8))")
+            } else {
                 EventLog.shared.log("event", "finished pop \(event.id.prefix(8))")
                 pop(collapseAfter: Settings.shared.finishedCollapseSeconds)
                 chirp(Chiptune.victory)
-            } else {
-                EventLog.shared.log("event", "finished suppressed frontmost \(event.id.prefix(8))")
             }
         case "needs_input":
-            if !frontmostMatches(event.id) {
+            if frontmostMatches(event.id) {
+                EventLog.shared.log("event", "needs_input suppressed frontmost \(event.id.prefix(8))")
+            } else if let reason = muteReason(event.id) {
+                EventLog.shared.log("event", "needs_input suppressed (\(reason)) \(event.id.prefix(8))")
+            } else {
                 EventLog.shared.log("event", "needs_input pop \(event.id.prefix(8))")
                 pop(collapseAfter: Settings.shared.needsInputCollapseSeconds)
                 chirp(Chiptune.attention)
-            } else {
-                EventLog.shared.log("event", "needs_input suppressed frontmost \(event.id.prefix(8))")
             }
         case "resumed":
             if permissions.isEmpty { scheduleCollapse(after: 0.6) }
@@ -248,8 +254,46 @@ final class SessionStore: ObservableObject {
     }
 
     func focusTerminal(_ session: AgentSession) {
+        if TerminalBridge.focusTab(bundleId: session.termBundleId, cwd: session.cwd) { return }
         guard !session.termBundleId.isEmpty else { return }
         NSRunningApplication.runningApplications(withBundleIdentifier: session.termBundleId).first?.activate()
+    }
+
+    func sendReply(_ sessionId: String, text: String) -> Bool {
+        guard let i = sessions.firstIndex(where: { $0.id == sessionId }) else { return false }
+        let session = sessions[i]
+        guard TerminalBridge.writeText(bundleId: session.termBundleId, cwd: session.cwd, text: text) else {
+            EventLog.shared.log("event", "reply failed — no scriptable terminal")
+            return false
+        }
+        sessions[i].status = .working
+        sessions[i].activity = ""
+        sessions[i].updatedAt = Date()
+        EventLog.shared.log("event", "reply sent")
+        sort()
+        if permissions.isEmpty { scheduleCollapse(after: 1.5) }
+        return true
+    }
+
+    func snooze(_ sessionId: String, minutes: Int) {
+        objectWillChange.send()
+        snoozedUntil[sessionId] = Date().addingTimeInterval(Double(minutes) * 60)
+    }
+
+    func unsnooze(_ sessionId: String) {
+        objectWillChange.send()
+        snoozedUntil.removeValue(forKey: sessionId)
+    }
+
+    func isSnoozed(_ sessionId: String) -> Bool {
+        guard let until = snoozedUntil[sessionId] else { return false }
+        return until > Date()
+    }
+
+    private func muteReason(_ sessionId: String) -> String? {
+        if isSnoozed(sessionId) { return "snoozed" }
+        if Settings.shared.respectFocusModes, FocusMode.systemFocusActive() { return "focus" }
+        return nil
     }
 
     private func prune() {

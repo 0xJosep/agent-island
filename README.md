@@ -92,7 +92,7 @@ irun npm run build
 irun --name deploy ./deploy.sh prod
 ```
 
-Builds, deploys, and test suites report to your notch like any agent.
+Builds, deploys, and test suites report to your notch like any agent. While a command runs, its latest output line tails onto the notch live (stdout and stderr are merged through a pipe for this) — pass `--no-tail` for interactive or TTY-dependent commands like `irun --no-tail vim`, which would break under a pipe.
 
 ## For tinkerers
 

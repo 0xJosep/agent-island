@@ -2,9 +2,13 @@ import SwiftUI
 
 struct IslandView: View {
     @ObservedObject var store: SessionStore
+    @ObservedObject private var screenShare = ScreenShare.shared
+    @AppStorage("hideWhenScreenShared") private var hideWhenScreenShared = true
     let notchSize: CGSize
 
     private var isOpen: Bool { store.isOpen }
+
+    private var shy: Bool { screenShare.isShared && hideWhenScreenShared }
 
     var body: some View {
         island
@@ -95,7 +99,7 @@ struct IslandView: View {
                 }
             }
 
-            if !store.usage.isEmpty {
+            if !store.usage.isEmpty && !shy {
                 usageFooter
             }
         }
@@ -125,11 +129,14 @@ struct IslandView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(.white.opacity(0.4))
             }
-            if !permission.detail.isEmpty {
+            if !permission.detail.isEmpty && !shy {
                 Text(permission.detail)
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.65))
                     .lineLimit(3)
+            }
+            if !permission.preview.isEmpty && !shy {
+                previewBox(permission.preview)
             }
             HStack(spacing: 8) {
                 actionButton(position == 0 ? "Allow  ⌃⌥A" : "Allow", tint: .green) {
@@ -154,6 +161,27 @@ struct IslandView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.orange.opacity(0.35), lineWidth: 1)
         )
+    }
+
+    private func previewBox(_ preview: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            ForEach(Array(preview.components(separatedBy: "\n").prefix(9).enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(previewColor(line))
+                    .lineLimit(1)
+            }
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxHeight: 120)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.4)))
+    }
+
+    private func previewColor(_ line: String) -> Color {
+        if line.hasPrefix("+") { return .green.opacity(0.85) }
+        if line.hasPrefix("-") { return .red.opacity(0.85) }
+        return .white.opacity(0.4)
     }
 
     @ViewBuilder
@@ -204,7 +232,7 @@ struct IslandView: View {
             PixelArt(sprite: Sprite.forStatus(session.status), size: 16)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(session.name)
+                    Text(displayName(session))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
@@ -229,12 +257,22 @@ struct IslandView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.55))
                     .lineLimit(2)
+                if session.status == .needsInput {
+                    ReplyRow(sessionId: session.id, store: store)
+                }
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(timestamp(session))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.35))
+                HStack(spacing: 3) {
+                    if store.isSnoozed(session.id) {
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                    Text(timestamp(session))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
                 if let pct = session.contextPct {
                     Text("\(Int(pct))% ctx")
                         .font(.system(size: 9))
@@ -254,6 +292,13 @@ struct IslandView: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onTapGesture { store.tap(session) }
+        .contextMenu {
+            Button("Snooze 1 hour") { store.snooze(session.id, minutes: 60) }
+            Button("Snooze until tomorrow") { store.snooze(session.id, minutes: 14 * 60) }
+            if store.isSnoozed(session.id) {
+                Button("Unsnooze") { store.unsnooze(session.id) }
+            }
+        }
     }
 
     private var usageFooter: some View {
@@ -285,10 +330,18 @@ struct IslandView: View {
     }
 
     private func sessionName(_ id: String) -> String {
-        store.sessions.first { $0.id == id }?.name ?? ""
+        guard let session = store.sessions.first(where: { $0.id == id }) else { return "" }
+        return displayName(session)
+    }
+
+    private func displayName(_ session: AgentSession) -> String {
+        guard shy else { return session.name }
+        let index = (store.sessions.map(\.id).sorted().firstIndex(of: session.id) ?? 0) + 1
+        return "Session \(index)"
     }
 
     private func statusLine(_ session: AgentSession) -> String {
+        if shy { return "•••" }
         if session.status == .working && !session.activity.isEmpty {
             return session.activity
         }
@@ -325,6 +378,48 @@ struct IslandView: View {
         if seconds < 60 { return "now" }
         if seconds < 3600 { return "\(seconds / 60)m" }
         return "\(seconds / 3600)h"
+    }
+}
+
+private struct ReplyRow: View {
+    let sessionId: String
+    let store: SessionStore
+    @State private var text = ""
+    @State private var failed = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField("Reply…", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Color.white.opacity(0.08)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(failed ? Color.red.opacity(0.7) : Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .onSubmit(send)
+            Button(action: send) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 2)
+    }
+
+    private func send() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if store.sendReply(sessionId, text: trimmed) {
+            text = ""
+        } else {
+            failed = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { failed = false }
+        }
     }
 }
 

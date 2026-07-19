@@ -14,6 +14,8 @@ final class Settings {
             "finishedCollapseSeconds": 6.0,
             "needsInputCollapseSeconds": 8.0,
             "quietWhenFocused": true,
+            "respectFocusModes": true,
+            "hideWhenScreenShared": true,
         ])
     }
 
@@ -41,6 +43,16 @@ final class Settings {
         get { defaults.bool(forKey: "quietWhenFocused") }
         set { defaults.set(newValue, forKey: "quietWhenFocused") }
     }
+
+    var respectFocusModes: Bool {
+        get { defaults.bool(forKey: "respectFocusModes") }
+        set { defaults.set(newValue, forKey: "respectFocusModes") }
+    }
+
+    var hideWhenScreenShared: Bool {
+        get { defaults.bool(forKey: "hideWhenScreenShared") }
+        set { defaults.set(newValue, forKey: "hideWhenScreenShared") }
+    }
 }
 
 struct SettingsView: View {
@@ -49,6 +61,8 @@ struct SettingsView: View {
     @AppStorage("finishedCollapseSeconds") private var finishedCollapseSeconds = 6.0
     @AppStorage("needsInputCollapseSeconds") private var needsInputCollapseSeconds = 8.0
     @AppStorage("quietWhenFocused") private var quietWhenFocused = true
+    @AppStorage("respectFocusModes") private var respectFocusModes = true
+    @AppStorage("hideWhenScreenShared") private var hideWhenScreenShared = true
     @State private var claudeStatus = AgentSetup.claudeStatus()
     @State private var codexStatus = AgentSetup.codexStatus()
     @State private var loginItemStatus = SMAppService.mainApp.status
@@ -129,6 +143,13 @@ struct SettingsView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                VStack(alignment: .leading, spacing: 3) {
+                    Toggle("Respect macOS Focus", isOn: $respectFocusModes)
+                    Text("Mute pops and sounds while a Focus is on.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Toggle("Hide details while screen is shared", isOn: $hideWhenScreenShared)
             }
             Section("Connect agents") {
                 agentRow(name: "Claude Code", status: claudeStatus) {

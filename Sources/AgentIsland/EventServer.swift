@@ -122,7 +122,8 @@ final class EventServer {
             sessionId: sessionId,
             title: toolName,
             detail: detail,
-            command: command
+            command: command,
+            preview: Self.toolPreview(name: toolName, input: toolInput)
         )
         DispatchQueue.main.async { [weak self, store] in
             if store.frontmostMatches(sessionId) {
@@ -285,6 +286,30 @@ final class EventServer {
             break
         }
         return ""
+    }
+
+    static func toolPreview(name: String, input: [String: Any]) -> String {
+        func prefixed(_ text: String, marker: String, max: Int) -> [String] {
+            let all = text.components(separatedBy: "\n")
+            var out = all.prefix(max).map { marker + $0 }
+            if all.count > max { out.append("…") }
+            return out
+        }
+        switch name {
+        case "Edit":
+            guard let old = input["old_string"] as? String,
+                  let new = input["new_string"] as? String else { return "" }
+            return (prefixed(old, marker: "- ", max: 4) + prefixed(new, marker: "+ ", max: 4))
+                .joined(separator: "\n")
+        case "Write":
+            guard let content = input["content"] as? String else { return "" }
+            return prefixed(content, marker: "+ ", max: 6).joined(separator: "\n")
+        case "NotebookEdit":
+            guard let source = input["new_source"] as? String else { return "" }
+            return prefixed(source, marker: "+ ", max: 6).joined(separator: "\n")
+        default:
+            return ""
+        }
     }
 
     static func parse(_ json: [String: Any]) -> AgentEvent? {

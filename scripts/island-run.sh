@@ -2,16 +2,28 @@
 PORT="${AGENT_ISLAND_PORT:-4144}"
 
 NAME=""
-if [ "$1" = "--name" ]; then
-  if [ -z "$2" ]; then
-    echo "usage: island-run.sh [--name <label>] <command> [args...]" >&2
-    exit 64
-  fi
-  NAME="$2"
-  shift 2
-fi
+TAIL=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --name)
+      if [ -z "$2" ]; then
+        echo "usage: island-run.sh [--name <label>] [--no-tail] <command> [args...]" >&2
+        exit 64
+      fi
+      NAME="$2"
+      shift 2
+      ;;
+    --no-tail)
+      TAIL=0
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 if [ $# -eq 0 ]; then
-  echo "usage: island-run.sh [--name <label>] <command> [args...]" >&2
+  echo "usage: island-run.sh [--name <label>] [--no-tail] <command> [args...]" >&2
   exit 64
 fi
 
@@ -37,6 +49,15 @@ trunc() {
   fi
 }
 
+trunc_line() {
+  local s="$1"
+  if [ "${#s}" -gt 60 ]; then
+    printf '%s…' "${s:0:59}"
+  else
+    printf '%s' "$s"
+  fi
+}
+
 post() {
   curl -s -m 1 -X POST "http://127.0.0.1:${PORT}/event" \
     -H 'Content-Type: application/json' \
@@ -46,13 +67,53 @@ post() {
 }
 
 START=$(date +%s)
-post working "$(trunc "$CMD_STR")"
+SHORT_CMD="$(trunc "$CMD_STR")"
+post working "$SHORT_CMD"
 
 INTERRUPTED=0
-trap 'INTERRUPTED=1' INT
-"$@"
-STATUS=$?
-trap - INT
+if [ "$TAIL" -eq 1 ]; then
+  STATE="$(mktemp "${TMPDIR:-/tmp}/island-run.XXXXXX")"
+  ANSI_ESC="$(printf '\033')"
+
+  poster() {
+    local raw clean
+    while :; do
+      sleep 2
+      raw="$(cat -- "$STATE" 2>/dev/null)"
+      clean="$(printf '%s' "$raw" \
+        | sed -E "s/${ANSI_ESC}\[[0-9;?]*[[:alpha:]]//g" \
+        | tr -d '\r' | tr -s '[:space:]' ' ')"
+      clean="${clean# }"
+      clean="${clean% }"
+      if [ -n "$clean" ]; then
+        post working "${SHORT_CMD} · $(trunc_line "$clean")"
+      fi
+    done
+  }
+  poster &
+  POSTER_PID=$!
+  trap 'kill "$POSTER_PID" 2>/dev/null; rm -f "$STATE"' EXIT
+
+  trap 'INTERRUPTED=1' INT
+  "$@" 2>&1 | while IFS= read -r line; do
+    printf '%s\n' "$line"
+    if [ -n "${line//[[:space:]]/}" ]; then
+      printf '%s\n' "$line" > "$STATE"
+    fi
+  done
+  STATUS="${PIPESTATUS[0]}"
+  trap - INT
+
+  kill "$POSTER_PID" 2>/dev/null
+  wait "$POSTER_PID" 2>/dev/null
+  rm -f "$STATE"
+  trap - EXIT
+else
+  trap 'INTERRUPTED=1' INT
+  "$@"
+  STATUS=$?
+  trap - INT
+fi
 
 DUR=$(( $(date +%s) - START ))
 SHORT_LABEL="$(trunc "$LABEL")"
