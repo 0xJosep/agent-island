@@ -35,7 +35,7 @@ final class AgentSetupTests: XCTestCase {
         let root = try loadSettings()
         let hooks = try XCTUnwrap(root["hooks"] as? [String: Any])
         XCTAssertEqual(Set(hooks.keys), Set(AgentSetup.hookEvents))
-        XCTAssertEqual(AgentSetup.hookEvents.count, 10)
+        XCTAssertEqual(AgentSetup.hookEvents.count, 12)
 
         let matcherEvents: Set<String> = ["PreToolUse", "PostToolUse", "PermissionRequest"]
         for event in AgentSetup.hookEvents {

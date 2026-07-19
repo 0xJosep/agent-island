@@ -26,6 +26,9 @@ struct AgentSession: Identifiable, Equatable {
     var termBundleId: String = ""
     var toolCount: Int = 0
     var turnStartedAt: Date? = nil
+    var transcriptPath: String = ""
+    var tasksTotal: Int = 0
+    var tasksDone: Int = 0
 
     var name: String {
         cwd.isEmpty ? source : (cwd as NSString).lastPathComponent
@@ -40,6 +43,7 @@ struct AgentEvent {
     var cwd: String
     var termBundleId: String = ""
     var agentId: String = ""
+    var transcriptPath: String = ""
 }
 
 struct PermissionItem: Identifiable, Equatable {
@@ -110,6 +114,7 @@ final class SessionStore: ObservableObject {
         session.updatedAt = Date()
         if !event.cwd.isEmpty { session.cwd = event.cwd }
         if !event.termBundleId.isEmpty { session.termBundleId = event.termBundleId }
+        if !event.transcriptPath.isEmpty { session.transcriptPath = event.transcriptPath }
 
         switch event.kind {
         case "idle", "started":
@@ -120,6 +125,8 @@ final class SessionStore: ObservableObject {
             session.message = ""
             session.toolCount = 0
             session.turnStartedAt = Date()
+            session.tasksTotal = 0
+            session.tasksDone = 0
         case "tool_start":
             session.status = .working
             session.activity = event.message
@@ -140,6 +147,10 @@ final class SessionStore: ObservableObject {
             session.subagentsById[key] = event.message.isEmpty ? "agent" : event.message
         case "subagent_stop":
             session.subagentsById.removeValue(forKey: event.agentId)
+        case "task_created":
+            session.tasksTotal += 1
+        case "task_completed":
+            session.tasksDone = min(session.tasksDone + 1, session.tasksTotal)
         default:
             session.status = .working
         }
@@ -147,6 +158,15 @@ final class SessionStore: ObservableObject {
         sessions.append(session)
         prune()
         sort()
+
+        if ["finished", "needs_input"].contains(event.kind), !session.transcriptPath.isEmpty {
+            refreshMessage(
+                sessionId: session.id,
+                path: session.transcriptPath,
+                expectedStatus: session.status,
+                capturedAt: session.updatedAt
+            )
+        }
 
         switch event.kind {
         case "finished":
@@ -292,6 +312,23 @@ final class SessionStore: ObservableObject {
     func isSnoozed(_ sessionId: String) -> Bool {
         guard let until = snoozedUntil[sessionId] else { return false }
         return until > Date()
+    }
+
+    private func refreshMessage(sessionId: String, path: String, expectedStatus: AgentStatus, capturedAt: Date) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let text = TranscriptReader.lastAssistantText(path: path) else { return }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            let display = trimmed.count > 200 ? String(trimmed.prefix(200)) + "…" : trimmed
+            DispatchQueue.main.async {
+                guard let self,
+                      let i = self.sessions.firstIndex(where: { $0.id == sessionId }),
+                      self.sessions[i].status == expectedStatus,
+                      self.sessions[i].updatedAt == capturedAt
+                else { return }
+                self.sessions[i].message = display
+            }
+        }
     }
 
     private func muteReason(_ sessionId: String) -> String? {

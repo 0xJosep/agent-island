@@ -15,6 +15,7 @@ enum AgentSetup {
     static let hookEvents = [
         "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart",
         "SubagentStop", "Stop", "Notification", "SessionEnd", "PermissionRequest",
+        "TaskCreated", "TaskCompleted",
     ]
 
     private static let matcherEvents: Set<String> = ["PreToolUse", "PostToolUse", "PermissionRequest"]

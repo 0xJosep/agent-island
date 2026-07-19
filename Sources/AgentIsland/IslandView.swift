@@ -228,77 +228,7 @@ struct IslandView: View {
     }
 
     private func row(_ session: AgentSession) -> some View {
-        HStack(spacing: 10) {
-            PixelArt(sprite: Sprite.forStatus(session.status), size: 16)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(displayName(session))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    Text(session.source)
-                        .font(.system(size: 9, weight: .medium))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1.5)
-                        .background(Capsule().fill(Color.white.opacity(0.12)))
-                        .foregroundStyle(.white.opacity(0.7))
-                    if !session.subagentsById.isEmpty {
-                        HStack(spacing: 3) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 8))
-                            Text(subagentLabel(session))
-                                .font(.system(size: 9, weight: .semibold))
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(.cyan.opacity(0.8))
-                    }
-                }
-                Text(statusLine(session))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.55))
-                    .lineLimit(2)
-                if session.status == .needsInput {
-                    ReplyRow(sessionId: session.id, store: store)
-                }
-            }
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 2) {
-                HStack(spacing: 3) {
-                    if store.isSnoozed(session.id) {
-                        Image(systemName: "moon.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.white.opacity(0.35))
-                    }
-                    Text(timestamp(session))
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.35))
-                }
-                if let pct = session.contextPct {
-                    Text("\(Int(pct))% ctx")
-                        .font(.system(size: 9))
-                        .foregroundStyle(pct > 80 ? .orange.opacity(0.8) : .white.opacity(0.3))
-                }
-                if session.status == .working, session.toolCount > 0 {
-                    Text("\(session.toolCount) tools")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.white.opacity(0.3))
-                }
-            }
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(session.status == .needsInput ? 0.12 : 0.05))
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 10))
-        .onTapGesture { store.tap(session) }
-        .contextMenu {
-            Button("Snooze 1 hour") { store.snooze(session.id, minutes: 60) }
-            Button("Snooze until tomorrow") { store.snooze(session.id, minutes: 14 * 60) }
-            if store.isSnoozed(session.id) {
-                Button("Unsnooze") { store.unsnooze(session.id) }
-            }
-        }
+        SessionRow(session: session, store: store, shy: shy, displayName: displayName(session))
     }
 
     private var usageFooter: some View {
@@ -338,6 +268,142 @@ struct IslandView: View {
         guard shy else { return session.name }
         let index = (store.sessions.map(\.id).sorted().firstIndex(of: session.id) ?? 0) + 1
         return "Session \(index)"
+    }
+
+}
+
+private struct SessionRow: View {
+    let session: AgentSession
+    let store: SessionStore
+    let shy: Bool
+    let displayName: String
+    @State private var hovering = false
+    @State private var expanded = false
+    @State private var peek: [TranscriptReader.Message] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                PixelArt(sprite: Sprite.forStatus(session.status), size: 16)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(displayName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text(session.source)
+                            .font(.system(size: 9, weight: .medium))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(Capsule().fill(Color.white.opacity(0.12)))
+                            .foregroundStyle(.white.opacity(0.7))
+                        if !session.subagentsById.isEmpty {
+                            HStack(spacing: 3) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.system(size: 8))
+                                Text(subagentLabel(session))
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(.cyan.opacity(0.8))
+                        }
+                    }
+                    Text(statusLine(session))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .lineLimit(session.status == .needsInput ? 3 : 2)
+                    if session.status == .needsInput {
+                        ReplyRow(sessionId: session.id, store: store)
+                    }
+                }
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 3) {
+                        if hovering, !shy, !session.transcriptPath.isEmpty {
+                            Button(action: togglePeek) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.white.opacity(0.4))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if store.isSnoozed(session.id) {
+                            Image(systemName: "moon.fill")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                        Text(timestamp(session))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
+                    if let pct = session.contextPct {
+                        Text("\(Int(pct))% ctx")
+                            .font(.system(size: 9))
+                            .foregroundStyle(pct > 80 ? .orange.opacity(0.8) : .white.opacity(0.3))
+                    }
+                    if session.status == .working, session.toolCount > 0 {
+                        Text("\(session.toolCount) tools")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.3))
+                    }
+                    if session.status == .working, session.tasksTotal > 0 {
+                        Text("\(session.tasksDone)/\(session.tasksTotal) tasks")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.3))
+                    }
+                }
+            }
+            if expanded, !shy {
+                peekSection
+            }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(session.status == .needsInput ? 0.12 : 0.05))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .onTapGesture { store.tap(session) }
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button("Snooze 1 hour") { store.snooze(session.id, minutes: 60) }
+            Button("Snooze until tomorrow") { store.snooze(session.id, minutes: 14 * 60) }
+            if store.isSnoozed(session.id) {
+                Button("Unsnooze") { store.unsnooze(session.id) }
+            }
+        }
+    }
+
+    private var peekSection: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(peek.enumerated()), id: \.offset) { _, message in
+                HStack(alignment: .top, spacing: 5) {
+                    Text(message.role == "assistant" ? "claude" : "you")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(message.role == "assistant" ? Color.orange.opacity(0.8) : Color.white.opacity(0.35))
+                    Text(message.text)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(3)
+                }
+            }
+        }
+        .padding(.top, 6)
+    }
+
+    private func togglePeek() {
+        if expanded {
+            expanded = false
+            return
+        }
+        expanded = true
+        let path = session.transcriptPath
+        DispatchQueue.global(qos: .utility).async {
+            let messages = TranscriptReader.recentMessages(path: path, limit: 6)
+            DispatchQueue.main.async {
+                peek = messages
+            }
+        }
     }
 
     private func statusLine(_ session: AgentSession) -> String {

@@ -354,6 +354,10 @@ final class EventServer {
                 kind = "finished"
             case "Notification":
                 kind = "needs_input"
+            case "TaskCreated", "TaskCompleted":
+                guard json["session_id"] is String else { return nil }
+                kind = hookName == "TaskCreated" ? "task_created" : "task_completed"
+                message = ""
             case "SessionEnd":
                 kind = "ended"
             default:
@@ -366,7 +370,8 @@ final class EventServer {
                 message: message,
                 cwd: cwd,
                 termBundleId: term,
-                agentId: json["agent_id"] as? String ?? ""
+                agentId: json["agent_id"] as? String ?? "",
+                transcriptPath: json["transcript_path"] as? String ?? ""
             )
         }
 
