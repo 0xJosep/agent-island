@@ -125,6 +125,9 @@ struct IslandView: View {
                 actionButton("Allow", tint: .green) {
                     store.resolvePermission(id: permission.id, decision: "allow")
                 }
+                actionButton("Always allow", tint: .teal) {
+                    store.resolvePermission(id: permission.id, decision: "allow_always")
+                }
                 actionButton("Deny", tint: .red) {
                     store.resolvePermission(id: permission.id, decision: "deny")
                 }

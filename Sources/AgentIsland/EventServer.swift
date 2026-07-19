@@ -4,9 +4,14 @@ import Network
 final class EventServer {
     static let port: UInt16 = 4144
 
+    private struct PendingPermission {
+        let connection: NWConnection
+        let toolName: String
+    }
+
     private let store: SessionStore
     private var listener: NWListener?
-    private var pending: [String: NWConnection] = [:]
+    private var pending: [String: PendingPermission] = [:]
 
     init(store: SessionStore) {
         self.store = store
@@ -90,35 +95,55 @@ final class EventServer {
             detail: detail
         )
         DispatchQueue.main.async { [weak self, store] in
-            self?.pending[id] = connection
+            self?.pending[id] = PendingPermission(connection: connection, toolName: toolName)
             store.addPermission(item)
         }
         connection.stateUpdateHandler = { [weak self] state in
-            if case .failed = state {
-                DispatchQueue.main.async {
-                    self?.pending.removeValue(forKey: id)
-                    self?.store.dropPermission(id: id)
-                }
-            } else if case .cancelled = state {
+            switch state {
+            case .failed, .cancelled:
                 DispatchQueue.main.async {
                     if self?.pending.removeValue(forKey: id) != nil {
                         self?.store.dropPermission(id: id)
                     }
                 }
+            default:
+                break
             }
         }
     }
 
     private func respondPermission(id: String, decision: String) {
-        guard let connection = pending.removeValue(forKey: id) else { return }
+        guard let entry = pending.removeValue(forKey: id) else { return }
         let body: String
         switch decision {
         case "allow", "deny":
             body = #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"\#(decision)"}}}"#
+        case "allow_always":
+            body = Self.allowAlwaysBody(toolName: entry.toolName)
         default:
             body = "{}"
         }
-        Self.send(connection, body: body)
+        Self.send(entry.connection, body: body)
+    }
+
+    private static func allowAlwaysBody(toolName: String) -> String {
+        let decision: [String: Any] = [
+            "behavior": "allow",
+            "updatedPermissions": [
+                [
+                    "type": "addRules",
+                    "rules": ["allow \(toolName)"]
+                ]
+            ]
+        ]
+        let payload: [String: Any] = [
+            "hookSpecificOutput": [
+                "hookEventName": "PermissionRequest",
+                "decision": decision
+            ]
+        ]
+        let data = (try? JSONSerialization.data(withJSONObject: payload)) ?? Data("{}".utf8)
+        return String(decoding: data, as: UTF8.self)
     }
 
     private func processStatus(_ json: [String: Any]) {
