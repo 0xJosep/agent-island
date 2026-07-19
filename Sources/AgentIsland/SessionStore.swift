@@ -260,10 +260,14 @@ final class SessionStore: ObservableObject {
     }
 
     func sendReply(_ sessionId: String, text: String) -> Bool {
-        guard let i = sessions.firstIndex(where: { $0.id == sessionId }) else { return false }
+        guard let i = sessions.firstIndex(where: { $0.id == sessionId }) else {
+            EventLog.shared.log("event", "reply attempt failed — unknown session \(sessionId.prefix(8))")
+            return false
+        }
         let session = sessions[i]
+        EventLog.shared.log("event", "reply attempt — bundle=\(session.termBundleId.isEmpty ? "MISSING" : session.termBundleId) cwd=\(session.cwd)")
         guard TerminalBridge.writeText(bundleId: session.termBundleId, cwd: session.cwd, text: text) else {
-            EventLog.shared.log("event", "reply failed — no scriptable terminal")
+            EventLog.shared.log("event", "reply failed — bridge returned false")
             return false
         }
         sessions[i].status = .working

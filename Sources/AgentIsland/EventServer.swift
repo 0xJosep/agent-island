@@ -94,6 +94,17 @@ final class EventServer {
             return
         }
 
+        if path == "/log" {
+            let dump = DispatchQueue.main.sync {
+                EventLog.shared.entries.suffix(120).map { entry in
+                    let time = entry.date.formatted(date: .omitted, time: .standard)
+                    return "\(time) [\(entry.category)] \(entry.summary)"
+                }.joined(separator: "\n")
+            }
+            Self.send(connection, body: dump.isEmpty ? "(empty)" : dump)
+            return
+        }
+
         if path == "/status" {
             processStatus(json)
         } else if let event = Self.parse(json) {

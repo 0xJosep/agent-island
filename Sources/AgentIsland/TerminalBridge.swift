@@ -23,11 +23,12 @@ enum TerminalBridge {
     }
 
     private static func itermPerform(cwd: String, text: String?) -> Bool {
-        var actions = ["select w", "select t", "select s"]
+        let actions: [String]
         if let text {
-            actions.append("tell s to write text \"\(escaped(text))\"")
+            actions = ["tell s to write text \"\(escaped(text))\""]
+        } else {
+            actions = ["select w", "select t", "select s", "activate"]
         }
-        actions.append("activate")
         let source = """
         set theCwd to "\(escaped(cwd))"
         set theCwdPrefix to "\(escaped(prefixForm(cwd)))"
@@ -71,11 +72,12 @@ enum TerminalBridge {
 
     private static func terminalPerform(cwd: String, text: String?) -> Bool {
         guard let devTty = terminalTtyMatching(cwd: cwd) else { return false }
-        var actions = ["set selected of t to true", "set frontmost of w to true"]
+        let actions: [String]
         if let text {
-            actions.append("do script \"\(escaped(text))\" in t")
+            actions = ["do script \"\(escaped(text))\" in t"]
+        } else {
+            actions = ["set selected of t to true", "set frontmost of w to true", "activate"]
         }
-        actions.append("activate")
         let source = """
         set theTty to "\(escaped(devTty))"
         tell application "Terminal"
