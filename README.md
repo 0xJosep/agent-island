@@ -1,74 +1,84 @@
-# Agent Island
+# 🏝️ Agent Island
 
-A Dynamic Island for your MacBook notch that tracks AI agent sessions (Claude Code, Codex, or anything else). When an agent finishes a task or needs your input, the island springs open around the notch with the session's status; hover over it any time to see all active agents.
+**A Dynamic Island for your MacBook notch — built for the age of AI agents.**
 
-## How it works
+Your AI agents live in terminals. You live everywhere else. Agent Island turns the wasted space around your notch into a tiny mission control: agents pop in the moment they finish, ask for permissions right on the island, and a marching 8-bit space invader tells you someone's still hard at work.
 
-The app draws a borderless always-on-top panel around the notch and runs a tiny HTTP server on `127.0.0.1:4144`. Agents report events by POSTing JSON to `/event`:
+No dock icon. No window to manage. Just your notch, doing something useful for once.
 
-- Claude Code hooks (`SessionStart`, `UserPromptSubmit`, `Stop`, `Notification`, `SessionEnd`) are forwarded verbatim by `scripts/agent-island-hook.sh`.
-- Codex's `notify` payload (`agent-turn-complete`) is understood natively — point `notify` at the same script.
-- Any other agent can use the generic schema:
+## Why you'll love it
 
-```json
-{"source": "my-agent", "id": "unique-session-id", "type": "finished", "message": "Built the thing", "cwd": "/path/to/project"}
-```
+- 🕹️ **8-bit soul** — a pixel invader marches while agents work, a green check sparkles when they finish, a red `!` blinks when they need you, and every event has its own chiptune melody, synthesized live like it's 1985.
+- 🔐 **Approve permissions without switching windows** — when Claude Code asks to run a command, the island pops an **Allow / Always allow / Deny** card. One click and your agent is moving again, from any app you happen to be in.
+- 🟢 **Know the moment a task lands** — finish pop with a victory arpeggio, then it gets out of your way. Click a session to jump straight to its terminal.
+- 👀 **Everything at a glance** — hover the notch for every active session: what tool it's running right now, subagent counts, context-window usage, and your Claude usage meters.
+- 🤖 **Plays with your whole crew** — Claude Code and Codex out of the box; anything else joins with a single JSON POST.
+- 🔄 **Updates itself** — signed auto-updates via Sparkle. Install once, stay current.
 
-`type` is one of `started`, `working`, `finished`, `needs_input`, `idle`, `ended`.
+<!-- screenshot: docs/screenshot.png -->
 
-Statuses: red = needs your input (stays open until handled), orange = working, green = finished (auto-collapses after a few seconds), gray = idle.
+## Get it
 
-## Features
+1. **[Download the latest dmg](https://github.com/0xJosep/agent-island/releases/latest)** (universal — Apple Silicon & Intel)
+2. Drag **Agent Island** to Applications, then **right-click → Open** the first time (it's ad-hoc signed, not notarized)
+3. Connect your agents below — 30 seconds each
 
-- **Interactive permission approval** — when Claude Code asks permission to run a tool, the island pops an Allow / Deny / Use terminal card. The `PermissionRequest` hook (`scripts/agent-island-permission.sh`) blocks on `POST /permission` until you click; Allow/Deny answer the prompt directly via `hookSpecificOutput.decision.behavior`, "Use terminal" (or the app being closed) falls back to the normal terminal prompt.
-- **Live tool activity** — `PreToolUse`/`PostToolUse` hooks show what each session is doing right now ("Bash — Run test suite").
-- **Subagent tracking** — `SubagentStart`/`SubagentStop` hooks show a per-session subagent count badge.
-- **Usage + context display** — the Claude Code status line (`scripts/agent-island-statusline.sh`) forwards `rate_limits` and context-window usage to `POST /status`; the island shows usage bars in the footer and per-session context %.
-- **Click to focus** — the hook script tags events with the terminal's bundle id (`__CFBundleIdentifier`); clicking a working session activates that terminal app. Clicking a finished session dismisses it.
+## Connect Claude Code
 
-## Install
-
-**Download**: grab `AgentIsland-vX.Y.Z.dmg` from [Releases](https://github.com/0xJosep/agent-island/releases), drag Agent Island to Applications, then **right-click → Open** the first time (the app is ad-hoc signed, not notarized, so plain double-click is blocked by Gatekeeper; alternatively `xattr -dr com.apple.quarantine "/Applications/Agent Island.app"`). The hook scripts ship inside the app at `Agent Island.app/Contents/Resources/scripts/` — point your hooks there or at a repo checkout.
-
-**Build from source**:
-
-```sh
-swift build -c release
-.build/release/AgentIsland
-```
-
-A sparkles menu bar item lets you send a test event or quit. `scripts/make-dmg.sh` produces the universal dmg in `dist/`.
-
-## Claude Code setup
-
-Add hooks to `~/.claude/settings.json` (each event forwards its payload to the island):
+Add to `~/.claude/settings.json` (create the `hooks` key if you don't have one). The scripts ship inside the app:
 
 ```json
 {
   "hooks": {
-    "SessionStart": [{"hooks": [{"type": "command", "command": "/Users/youssef/personal/agent-island/scripts/agent-island-hook.sh"}]}],
-    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/Users/youssef/personal/agent-island/scripts/agent-island-hook.sh"}]}],
-    "Stop": [{"hooks": [{"type": "command", "command": "/Users/youssef/personal/agent-island/scripts/agent-island-hook.sh"}]}],
-    "Notification": [{"hooks": [{"type": "command", "command": "/Users/youssef/personal/agent-island/scripts/agent-island-hook.sh"}]}],
-    "SessionEnd": [{"hooks": [{"type": "command", "command": "/Users/youssef/personal/agent-island/scripts/agent-island-hook.sh"}]}]
+    "SessionStart":     [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "PreToolUse":       [{"matcher": "*", "hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "PostToolUse":      [{"matcher": "*", "hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "SubagentStart":    [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "SubagentStop":     [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "Stop":             [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "Notification":     [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "SessionEnd":       [{"hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"}]}],
+    "PermissionRequest": [{"matcher": "*", "hooks": [{"type": "command", "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-permission.sh", "timeout": 600}]}]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-statusline.sh"
   }
 }
 ```
 
-The script fires curl in the background with a 1s timeout and always exits 0, so hooks add no latency and nothing breaks when the app isn't running.
+The hook script fires-and-forgets in the background (zero added latency) and is harmless when the app isn't running. The `statusLine` entry powers the usage meters.
 
-## Codex setup
+## Connect Codex
 
 In `~/.codex/config.toml`:
 
 ```toml
-notify = ["/Users/youssef/personal/agent-island/scripts/agent-island-hook.sh"]
+notify = ["/Applications/Agent Island.app/Contents/Resources/scripts/agent-island-hook.sh"]
 ```
 
-## Start at login
+## Connect anything else
+
+Any process can put itself on the island with one request:
 
 ```sh
-swift build -c release
-cp launchd/com.youssef.agent-island.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.youssef.agent-island.plist
+curl -X POST http://127.0.0.1:4144/event -H 'Content-Type: application/json' \
+  -d '{"source": "my-agent", "id": "run-42", "type": "finished", "message": "Deployed to prod", "cwd": "/path/to/project"}'
 ```
+
+`type`: `started` · `working` · `finished` · `needs_input` · `idle` · `ended`
+
+## For tinkerers
+
+It's a small Swift/SwiftUI app — no Xcode project, no asset catalogs, sprites and sounds are generated in code.
+
+```sh
+git clone https://github.com/0xJosep/agent-island && cd agent-island
+swift build -c release && .build/release/AgentIsland
+```
+
+- `scripts/install-launch-agent.sh` — run the repo build at login via launchd (dev setup; the updater stays off outside the .app bundle)
+- `scripts/make-dmg.sh` + `scripts/make-appcast.sh` — build the universal dmg and the signed Sparkle feed
+- Endpoints: `POST /event` (status events, Claude Code hook payloads verbatim), `POST /permission` (blocks until you click Allow/Deny), `POST /status` (statusline usage data)
+- Port: `4144`, override with `AGENT_ISLAND_PORT`
