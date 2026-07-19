@@ -3,13 +3,13 @@
   <channel>
     <title>Agent Island</title>
     <item>
-      <title>Agent Island 0.3.1</title>
-      <pubDate>Sun, 19 Jul 2026 14:57:03 +0000</pubDate>
-      <sparkle:version>11</sparkle:version>
-      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+      <title>Agent Island 0.3.2</title>
+      <pubDate>Sun, 19 Jul 2026 15:09:54 +0000</pubDate>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/0xJosep/agent-island/releases/tag/v0.3.1</sparkle:releaseNotesLink>
-      <enclosure url="https://github.com/0xJosep/agent-island/releases/download/v0.3.1/AgentIsland-v0.3.1.dmg" type="application/octet-stream" sparkle:edSignature="5N8xvXLjAPCrJZbuzCoEQJyXSopqOygFH8gIbPFu4+3uS/QmzPtbLh1DVOPV9Ro+fHyAPyOsQ4mA7oBmNOb7Bw==" length="1962388"/>
+      <sparkle:releaseNotesLink>https://github.com/0xJosep/agent-island/releases/tag/v0.3.2</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/0xJosep/agent-island/releases/download/v0.3.2/AgentIsland-v0.3.2.dmg" type="application/octet-stream" sparkle:edSignature="XEKJGzWhpolPFm20aXmotzDCYO0oeLhyA5JAdFu2RMAafsLKU7zzfDdmstRoDoRv2cF6+1goIekrtcI+y8GZDw==" length="1967970"/>
     </item>
   </channel>
 </rss>
