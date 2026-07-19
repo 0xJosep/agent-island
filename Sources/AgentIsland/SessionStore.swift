@@ -132,10 +132,10 @@ final class SessionStore: ObservableObject {
         switch event.kind {
         case "finished":
             pop(collapseAfter: 6)
-            play("Glass")
+            chirp(Chiptune.victory)
         case "needs_input":
             pop(collapseAfter: 8)
-            play("Ping")
+            chirp(Chiptune.attention)
         case "resumed":
             if permissions.isEmpty { scheduleCollapse(after: 0.6) }
         default:
@@ -161,7 +161,7 @@ final class SessionStore: ObservableObject {
         }
         collapseWork?.cancel()
         pinnedOpen = true
-        play("Ping")
+        chirp(Chiptune.alarm)
     }
 
     func resolvePermission(id: String, decision: String) {
@@ -233,9 +233,9 @@ final class SessionStore: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
-    private func play(_ name: String) {
+    private func chirp(_ melody: [(Double, Double)]) {
         guard Date().timeIntervalSince(lastSound) > 2 else { return }
         lastSound = Date()
-        NSSound(named: name)?.play()
+        Chiptune.shared.play(melody)
     }
 }

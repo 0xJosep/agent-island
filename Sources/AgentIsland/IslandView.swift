@@ -42,18 +42,22 @@ struct IslandView: View {
         notchSize.width + (store.sessions.isEmpty ? 0 : 72)
     }
 
+    private var pillSprite: Sprite {
+        if !store.permissions.isEmpty { return .lock }
+        if let first = store.sessions.first { return Sprite.forStatus(first.status) }
+        return .zzz
+    }
+
     private var closedView: some View {
         HStack {
             if !store.sessions.isEmpty {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
+                PixelArt(sprite: pillSprite, size: min(notchSize.height - 12, 18))
             }
             Spacer(minLength: 0)
             HStack(spacing: 5) {
                 ForEach(store.sessions.prefix(4)) { session in
                     StatusDot(status: session.status)
-                        .frame(width: 7, height: 7)
+                        .frame(width: 6, height: 6)
                 }
             }
         }
@@ -104,9 +108,7 @@ struct IslandView: View {
     private func permissionCard(_ permission: PermissionItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "lock.shield")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.orange)
+                PixelArt(sprite: .lock, size: 14)
                 Text("Permission: \(permission.title)")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
@@ -163,8 +165,7 @@ struct IslandView: View {
 
     private func row(_ session: AgentSession) -> some View {
         HStack(spacing: 10) {
-            StatusDot(status: session.status)
-                .frame(width: 8, height: 8)
+            PixelArt(sprite: Sprite.forStatus(session.status), size: 16)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(session.name)
@@ -283,7 +284,7 @@ struct StatusDot: View {
     }
 
     var body: some View {
-        Circle()
+        Rectangle()
             .fill(color)
             .opacity(status == .working && pulsing ? 0.3 : 1)
             .onAppear {
