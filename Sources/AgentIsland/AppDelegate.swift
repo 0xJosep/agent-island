@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 extension NSScreen {
@@ -47,9 +48,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: NotchPanel?
     private var server: EventServer?
     private var statusItem: NSStatusItem?
+    private var updater: SPUStandardUpdaterController?
+
+    private var runsAsBundle: Bool {
+        Bundle.main.bundlePath.hasSuffix(".app")
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if runsAsBundle {
+            updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        }
         server = EventServer(store: store)
         server?.start()
         setupPanel()
@@ -78,6 +87,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let testItem = NSMenuItem(title: "Send Test Event", action: #selector(sendTestEvent), keyEquivalent: "")
         testItem.target = self
         menu.addItem(testItem)
+        if let updater {
+            let updateItem = NSMenuItem(
+                title: "Check for Updates…",
+                action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+                keyEquivalent: ""
+            )
+            updateItem.target = updater
+            menu.addItem(updateItem)
+        }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit AgentIsland", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu

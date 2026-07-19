@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Agent Island</title>
+    <item>
+      <title>Agent Island 0.2.1</title>
+      <pubDate>Sun, 19 Jul 2026 13:36:47 +0000</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:releaseNotesLink>https://github.com/0xJosep/agent-island/releases/tag/v0.2.1</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/0xJosep/agent-island/releases/download/v0.2.1/AgentIsland-v0.2.1.dmg" type="application/octet-stream" sparkle:edSignature="EZKMcvHC64PbOz/xNNQHcwJGatiZgJpRYsq9Wxvrx7P4UWUgW2xErxkBqnbI2Pg+srMCa1Wy+AgkQsesZ7gcBw==" length="1585519"/>
+    </item>
+  </channel>
+</rss>

@@ -4,7 +4,14 @@ import PackageDescription
 let package = Package(
     name: "AgentIsland",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0")
+    ],
     targets: [
-        .executableTarget(name: "AgentIsland", path: "Sources/AgentIsland")
+        .executableTarget(
+            name: "AgentIsland",
+            dependencies: [.product(name: "Sparkle", package: "Sparkle")],
+            path: "Sources/AgentIsland"
+        )
     ]
 )

@@ -24,9 +24,11 @@ else
   cp "$BIN_ARM" "$BIN"
 fi
 
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/scripts"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources/scripts"
 cp "$REPO/packaging/Info.plist" "$APP/Contents/Info.plist"
 mv "$BIN" "$APP/Contents/MacOS/AgentIsland"
+cp -R "$REPO/.build-arm64/arm64-apple-macosx/release/Sparkle.framework" "$APP/Contents/Frameworks/"
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/AgentIsland"
 cp "$REPO/scripts/agent-island-hook.sh" \
    "$REPO/scripts/agent-island-permission.sh" \
    "$REPO/scripts/agent-island-statusline.sh" \
