@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var server: EventServer?
     private var statusItem: NSStatusItem?
     private var updater: SPUStandardUpdaterController?
+    private var hotKeys: HotKeys?
 
     private var runsAsBundle: Bool {
         Bundle.main.bundlePath.hasSuffix(".app")
@@ -56,9 +57,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        takeOverPort()
         if runsAsBundle {
             updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
         }
+        hotKeys = HotKeys(store: store)
+        hotKeys?.register()
         server = EventServer(store: store)
         server?.start()
         setupPanel()
@@ -70,6 +74,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.setupPanel()
         }
+    }
+
+    private func takeOverPort() {
+        guard !EventServer.portFree() else { return }
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(EventServer.port)/quit")!)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 1
+        let done = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: request) { _, _, _ in done.signal() }.resume()
+        _ = done.wait(timeout: .now() + 1.5)
+        for _ in 0..<10 {
+            if EventServer.portFree() { return }
+            usleep(300_000)
+        }
+        NSLog("AgentIsland: port \(EventServer.port) still busy after takeover attempt")
     }
 
     private func setupPanel() {

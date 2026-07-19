@@ -15,6 +15,8 @@ No dock icon. No window to manage. Just your notch, doing something useful for o
 - 🔐 **Approve permissions without switching windows** — when Claude Code asks to run a command, the island pops an **Allow / Always allow / Deny** card. One click and your agent is moving again, from any app you happen to be in.
 - 🟢 **Know the moment a task lands** — finish pop with a victory arpeggio, then it gets out of your way. Click a session to jump straight to its terminal.
 - 👀 **Everything at a glance** — hover the notch for every active session: what tool it's running right now, subagent counts, context-window usage, and your Claude usage meters.
+- 🤫 **Quiet when you're present** — pops, sounds, and permission cards only fire when you're *not* already in that session's terminal. If you're right there, prompts flow to your terminal like normal and the island stays out of your way.
+- ⌨️ **Keyboard-first** — **⌃⌥A** approves and **⌃⌥D** denies the top permission card from any app, no mouse required; **⌃⌥I** toggles the island open.
 - 🤖 **Plays with your whole crew** — Claude Code and Codex out of the box; anything else joins with a single JSON POST.
 - 🔄 **Updates itself** — signed auto-updates via Sparkle. Install once, stay current.
 

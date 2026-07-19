@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Network
 
@@ -18,6 +19,22 @@ final class EventServer {
         store.permissionHandler = { [weak self] id, decision in
             self?.respondPermission(id: id, decision: decision)
         }
+    }
+
+    static func portFree() -> Bool {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return true }
+        defer { Darwin.close(fd) }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let result = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return result == 0
     }
 
     func start() {
@@ -62,6 +79,14 @@ final class EventServer {
     private func route(path: String, body: Data, connection: NWConnection) {
         let json = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
 
+        if path == "/quit" {
+            Self.send(connection, body: "bye")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                NSApp.terminate(nil)
+            }
+            return
+        }
+
         if path == "/permission" {
             holdPermission(json, connection: connection)
             return
@@ -95,6 +120,10 @@ final class EventServer {
             detail: detail
         )
         DispatchQueue.main.async { [weak self, store] in
+            if store.frontmostMatches(sessionId) {
+                Self.send(connection, body: "{}")
+                return
+            }
             self?.pending[id] = PendingPermission(connection: connection, toolName: toolName)
             store.addPermission(item)
         }

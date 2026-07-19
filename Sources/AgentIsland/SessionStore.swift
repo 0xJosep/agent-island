@@ -137,16 +137,43 @@ final class SessionStore: ObservableObject {
 
         switch event.kind {
         case "finished":
-            pop(collapseAfter: 6)
-            chirp(Chiptune.victory)
+            if !frontmostMatches(event.id) {
+                pop(collapseAfter: 6)
+                chirp(Chiptune.victory)
+            }
         case "needs_input":
-            pop(collapseAfter: 8)
-            chirp(Chiptune.attention)
+            if !frontmostMatches(event.id) {
+                pop(collapseAfter: 8)
+                chirp(Chiptune.attention)
+            }
         case "resumed":
             if permissions.isEmpty { scheduleCollapse(after: 0.6) }
         default:
             break
         }
+    }
+
+    func frontmostMatches(_ sessionId: String) -> Bool {
+        guard let session = sessions.first(where: { $0.id == sessionId }),
+              !session.termBundleId.isEmpty,
+              let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        else { return false }
+        return frontmost == session.termBundleId
+    }
+
+    func approveTopPermission() {
+        guard let top = permissions.first else { return }
+        resolvePermission(id: top.id, decision: "allow")
+    }
+
+    func denyTopPermission() {
+        guard let top = permissions.first else { return }
+        resolvePermission(id: top.id, decision: "deny")
+    }
+
+    func toggleIsland() {
+        collapseWork?.cancel()
+        pinnedOpen.toggle()
     }
 
     func applyStatus(sessionId: String, model: String, contextPct: Double?, usageBars: [UsageBar]) {
