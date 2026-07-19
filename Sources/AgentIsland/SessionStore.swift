@@ -69,6 +69,12 @@ final class SessionStore: ObservableObject {
     }
 
     func apply(_ event: AgentEvent) {
+        if ["tool_start", "tool_end", "resumed", "finished", "ended"].contains(event.kind) {
+            for item in permissions.filter({ $0.sessionId == event.id }) {
+                resolvePermission(id: item.id, decision: "pass")
+            }
+        }
+
         if event.kind == "ended" {
             tombstones[event.id] = Date()
             sessions.removeAll { $0.id == event.id }

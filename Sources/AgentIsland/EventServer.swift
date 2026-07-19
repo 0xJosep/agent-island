@@ -98,6 +98,11 @@ final class EventServer {
             self?.pending[id] = PendingPermission(connection: connection, toolName: toolName)
             store.addPermission(item)
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in
+            guard let self, self.pending[id] != nil else { return }
+            self.respondPermission(id: id, decision: "pass")
+            self.store.dropPermission(id: id)
+        }
         connection.stateUpdateHandler = { [weak self] state in
             switch state {
             case .failed, .cancelled:
