@@ -12,5 +12,9 @@
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/youssef/Library/Logs/AgentIsland.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/youssef/Library/Logs/AgentIsland.log</string>
 </dict>
 </plist>
