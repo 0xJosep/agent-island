@@ -20,10 +20,12 @@ struct AgentSession: Identifiable, Equatable {
     var status: AgentStatus
     var updatedAt: Date
     var activity: String = ""
-    var subagents: Int = 0
+    var subagentsById: [String: String] = [:]
     var model: String = ""
     var contextPct: Double? = nil
     var termBundleId: String = ""
+    var toolCount: Int = 0
+    var turnStartedAt: Date? = nil
 
     var name: String {
         cwd.isEmpty ? source : (cwd as NSString).lastPathComponent
@@ -37,6 +39,7 @@ struct AgentEvent {
     var message: String
     var cwd: String
     var termBundleId: String = ""
+    var agentId: String = ""
 }
 
 struct PermissionItem: Identifiable, Equatable {
@@ -111,22 +114,28 @@ final class SessionStore: ObservableObject {
             session.status = .working
             session.activity = ""
             session.message = ""
+            session.toolCount = 0
+            session.turnStartedAt = Date()
         case "tool_start":
             session.status = .working
             session.activity = event.message
+            session.toolCount += 1
+            if session.turnStartedAt == nil { session.turnStartedAt = Date() }
         case "tool_end":
             session.activity = ""
         case "finished":
             session.status = .finished
             session.activity = ""
+            session.turnStartedAt = nil
             if !event.message.isEmpty { session.message = event.message }
         case "needs_input":
             session.status = .needsInput
             if !event.message.isEmpty { session.message = event.message }
         case "subagent_start":
-            session.subagents += 1
+            let key = event.agentId.isEmpty ? UUID().uuidString : event.agentId
+            session.subagentsById[key] = event.message.isEmpty ? "agent" : event.message
         case "subagent_stop":
-            session.subagents = max(0, session.subagents - 1)
+            session.subagentsById.removeValue(forKey: event.agentId)
         default:
             session.status = .working
         }

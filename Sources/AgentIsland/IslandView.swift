@@ -79,8 +79,8 @@ struct IslandView: View {
             }
             .padding(.horizontal, 6)
 
-            ForEach(store.permissions) { permission in
-                permissionCard(permission)
+            ForEach(Array(store.permissions.enumerated()), id: \.element.id) { position, permission in
+                permissionCard(permission, position: position, total: store.permissions.count)
             }
 
             if store.sessions.isEmpty && store.permissions.isEmpty {
@@ -105,13 +105,21 @@ struct IslandView: View {
         .frame(width: 440)
     }
 
-    private func permissionCard(_ permission: PermissionItem) -> some View {
+    private func permissionCard(_ permission: PermissionItem, position: Int, total: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 PixelArt(sprite: .lock, size: 14)
                 Text("Permission: \(permission.title)")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
+                if total > 1 {
+                    Text("\(position + 1)/\(total)")
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(Capsule().fill(Color.orange.opacity(0.3)))
+                        .foregroundStyle(.orange)
+                }
                 Spacer()
                 Text(sessionName(permission.sessionId))
                     .font(.system(size: 10))
@@ -124,16 +132,16 @@ struct IslandView: View {
                     .lineLimit(3)
             }
             HStack(spacing: 8) {
-                actionButton("Allow", tint: .green) {
+                actionButton(position == 0 ? "Allow  ⌃⌥A" : "Allow", tint: .green) {
                     store.resolvePermission(id: permission.id, decision: "allow")
                 }
                 actionButton("Always allow", tint: .teal) {
                     store.resolvePermission(id: permission.id, decision: "allow_always")
                 }
-                actionButton("Deny", tint: .red) {
+                actionButton(position == 0 ? "Deny  ⌃⌥D" : "Deny", tint: .red) {
                     store.resolvePermission(id: permission.id, decision: "deny")
                 }
-                actionButton("Use terminal", tint: .gray) {
+                actionButton("Terminal", tint: .gray) {
                     store.resolvePermission(id: permission.id, decision: "pass")
                 }
                 Spacer()
@@ -178,12 +186,13 @@ struct IslandView: View {
                         .padding(.vertical, 1.5)
                         .background(Capsule().fill(Color.white.opacity(0.12)))
                         .foregroundStyle(.white.opacity(0.7))
-                    if session.subagents > 0 {
-                        HStack(spacing: 2) {
+                    if !session.subagentsById.isEmpty {
+                        HStack(spacing: 3) {
                             Image(systemName: "person.2.fill")
                                 .font(.system(size: 8))
-                            Text("\(session.subagents)")
+                            Text(subagentLabel(session))
                                 .font(.system(size: 9, weight: .semibold))
+                                .lineLimit(1)
                         }
                         .foregroundStyle(.cyan.opacity(0.8))
                     }
@@ -195,13 +204,18 @@ struct IslandView: View {
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 2) {
-                Text(ago(session.updatedAt))
+                Text(timestamp(session))
                     .font(.system(size: 10))
                     .foregroundStyle(.white.opacity(0.35))
                 if let pct = session.contextPct {
                     Text("\(Int(pct))% ctx")
                         .font(.system(size: 9))
                         .foregroundStyle(pct > 80 ? .orange.opacity(0.8) : .white.opacity(0.3))
+                }
+                if session.status == .working, session.toolCount > 0 {
+                    Text("\(session.toolCount) tools")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.white.opacity(0.3))
                 }
             }
         }
@@ -260,6 +274,22 @@ struct IslandView: View {
         case .idle:
             return "Idle"
         }
+    }
+
+    private func timestamp(_ session: AgentSession) -> String {
+        if session.status == .working, let start = session.turnStartedAt {
+            let seconds = Int(Date().timeIntervalSince(start))
+            if seconds < 60 { return "\(seconds)s" }
+            if seconds < 3600 { return "\(seconds / 60)m \(seconds % 60)s" }
+            return "\(seconds / 3600)h \(seconds % 3600 / 60)m"
+        }
+        return ago(session.updatedAt)
+    }
+
+    private func subagentLabel(_ session: AgentSession) -> String {
+        let names = session.subagentsById.values.sorted()
+        if names.count <= 2 { return names.joined(separator: ", ") }
+        return names.prefix(2).joined(separator: ", ") + " +\(names.count - 2)"
     }
 
     private func ago(_ date: Date) -> String {

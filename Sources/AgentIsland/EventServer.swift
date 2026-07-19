@@ -274,6 +274,7 @@ final class EventServer {
                 message = ""
             case "SubagentStart":
                 kind = "subagent_start"
+                message = json["agent_type"] as? String ?? ""
             case "SubagentStop":
                 kind = "subagent_stop"
             case "Stop":
@@ -285,7 +286,15 @@ final class EventServer {
             default:
                 return nil
             }
-            return AgentEvent(id: id, source: "claude", kind: kind, message: message, cwd: cwd, termBundleId: term)
+            return AgentEvent(
+                id: id,
+                source: "claude",
+                kind: kind,
+                message: message,
+                cwd: cwd,
+                termBundleId: term,
+                agentId: json["agent_id"] as? String ?? ""
+            )
         }
 
         if let type = json["type"] as? String, type == "agent-turn-complete" {
