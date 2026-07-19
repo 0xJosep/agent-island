@@ -26,14 +26,18 @@ Statuses: red = needs your input (stays open until handled), orange = working, g
 - **Usage + context display** — the Claude Code status line (`scripts/agent-island-statusline.sh`) forwards `rate_limits` and context-window usage to `POST /status`; the island shows usage bars in the footer and per-session context %.
 - **Click to focus** — the hook script tags events with the terminal's bundle id (`__CFBundleIdentifier`); clicking a working session activates that terminal app. Clicking a finished session dismisses it.
 
-## Build & run
+## Install
+
+**Download**: grab `AgentIsland-vX.Y.Z.dmg` from [Releases](https://github.com/0xJosep/agent-island/releases), drag Agent Island to Applications, then **right-click → Open** the first time (the app is ad-hoc signed, not notarized, so plain double-click is blocked by Gatekeeper; alternatively `xattr -dr com.apple.quarantine "/Applications/Agent Island.app"`). The hook scripts ship inside the app at `Agent Island.app/Contents/Resources/scripts/` — point your hooks there or at a repo checkout.
+
+**Build from source**:
 
 ```sh
 swift build -c release
 .build/release/AgentIsland
 ```
 
-A sparkles menu bar item lets you send a test event or quit.
+A sparkles menu bar item lets you send a test event or quit. `scripts/make-dmg.sh` produces the universal dmg in `dist/`.
 
 ## Claude Code setup
 
