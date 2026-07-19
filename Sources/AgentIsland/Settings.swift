@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 final class Settings {
@@ -50,6 +51,25 @@ struct SettingsView: View {
     @AppStorage("quietWhenFocused") private var quietWhenFocused = true
     @State private var claudeStatus = AgentSetup.claudeStatus()
     @State private var codexStatus = AgentSetup.codexStatus()
+    @State private var loginItemStatus = SMAppService.mainApp.status
+
+    private var isBundledApp: Bool {
+        Bundle.main.bundlePath.hasSuffix(".app")
+    }
+
+    private var startAtLogin: Binding<Bool> {
+        Binding(
+            get: { loginItemStatus == .enabled },
+            set: { enable in
+                if enable {
+                    try? SMAppService.mainApp.register()
+                } else {
+                    try? SMAppService.mainApp.unregister()
+                }
+                loginItemStatus = SMAppService.mainApp.status
+            }
+        )
+    }
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -57,6 +77,21 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("General") {
+                VStack(alignment: .leading, spacing: 3) {
+                    Toggle("Start at login", isOn: startAtLogin)
+                        .disabled(!isBundledApp)
+                    if !isBundledApp {
+                        Text("Available when running the installed app.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    } else if loginItemStatus == .requiresApproval {
+                        Text("Approve in System Settings → Login Items")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             Section("Sounds") {
                 Toggle("Play sounds", isOn: $soundsEnabled)
                 HStack {

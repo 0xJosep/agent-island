@@ -91,6 +91,7 @@ final class SessionStore: ObservableObject {
            let ended = tombstones[event.id],
            Date().timeIntervalSince(ended) < 30,
            !["idle", "started", "resumed"].contains(event.kind) {
+            EventLog.shared.log("event", "tombstone reject \(event.kind) \(event.id.prefix(8))")
             return
         }
 
@@ -148,13 +149,19 @@ final class SessionStore: ObservableObject {
         switch event.kind {
         case "finished":
             if !frontmostMatches(event.id) {
+                EventLog.shared.log("event", "finished pop \(event.id.prefix(8))")
                 pop(collapseAfter: Settings.shared.finishedCollapseSeconds)
                 chirp(Chiptune.victory)
+            } else {
+                EventLog.shared.log("event", "finished suppressed frontmost \(event.id.prefix(8))")
             }
         case "needs_input":
             if !frontmostMatches(event.id) {
+                EventLog.shared.log("event", "needs_input pop \(event.id.prefix(8))")
                 pop(collapseAfter: Settings.shared.needsInputCollapseSeconds)
                 chirp(Chiptune.attention)
+            } else {
+                EventLog.shared.log("event", "needs_input suppressed frontmost \(event.id.prefix(8))")
             }
         case "resumed":
             if permissions.isEmpty { scheduleCollapse(after: 0.6) }
@@ -209,6 +216,7 @@ final class SessionStore: ObservableObject {
     }
 
     func resolvePermission(id: String, decision: String) {
+        EventLog.shared.log("permission", "resolve \(decision) \(id.prefix(8))")
         permissions.removeAll { $0.id == id }
         permissionHandler?(id, decision)
         for i in sessions.indices where sessions[i].status == .needsInput {
@@ -270,6 +278,9 @@ final class SessionStore: ObservableObject {
             if self.hovering {
                 self.scheduleCollapse(after: 2)
                 return
+            }
+            if self.pinnedOpen {
+                EventLog.shared.log("event", "auto-collapse fired")
             }
             self.pinnedOpen = false
         }

@@ -80,6 +80,7 @@ final class EventServer {
         let json = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
 
         if path == "/quit" {
+            EventLog.shared.log("server", "/quit")
             Self.send(connection, body: "bye")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 NSApp.terminate(nil)
@@ -88,6 +89,7 @@ final class EventServer {
         }
 
         if path == "/permission" {
+            EventLog.shared.log("server", "/permission")
             holdPermission(json, connection: connection)
             return
         }
@@ -95,9 +97,12 @@ final class EventServer {
         if path == "/status" {
             processStatus(json)
         } else if let event = Self.parse(json) {
+            EventLog.shared.log("event", "\(path) \(event.kind) \(event.id.prefix(8))")
             DispatchQueue.main.async { [store] in
                 store.apply(event)
             }
+        } else {
+            EventLog.shared.log("event", "\(path) unparsed")
         }
         Self.send(connection, body: "ok")
     }
@@ -121,14 +126,17 @@ final class EventServer {
         )
         DispatchQueue.main.async { [weak self, store] in
             if store.frontmostMatches(sessionId) {
+                EventLog.shared.log("permission", "frontmost pass-through \(toolName) \(sessionId.prefix(8))")
                 Self.send(connection, body: "{}")
                 return
             }
             self?.pending[id] = PendingPermission(connection: connection, toolName: toolName)
+            EventLog.shared.log("permission", "created \(id.prefix(8)) \(toolName) \(sessionId.prefix(8))")
             store.addPermission(item)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in
             guard let self, self.pending[id] != nil else { return }
+            EventLog.shared.log("permission", "expiry 300s fired \(id.prefix(8))")
             self.respondPermission(id: id, decision: "pass")
             self.store.dropPermission(id: id)
         }
@@ -137,6 +145,7 @@ final class EventServer {
             case .failed, .cancelled:
                 DispatchQueue.main.async {
                     if self?.pending.removeValue(forKey: id) != nil {
+                        EventLog.shared.log("server", "connection \(state) dropped pending \(id.prefix(8))")
                         self?.store.dropPermission(id: id)
                     }
                 }
@@ -148,6 +157,7 @@ final class EventServer {
 
     private func respondPermission(id: String, decision: String) {
         guard let entry = pending.removeValue(forKey: id) else { return }
+        EventLog.shared.log("permission", "respond \(decision) \(id.prefix(8))")
         let body: String
         switch decision {
         case "allow", "deny":
@@ -225,6 +235,8 @@ final class EventServer {
                 }
             }
         }
+        let pctText = contextPct.map { String(format: "%.0f%%", $0) } ?? "-"
+        EventLog.shared.log("status", "\(sessionId.isEmpty ? "?" : String(sessionId.prefix(8))) ctx \(pctText)")
         guard !sessionId.isEmpty || !bars.isEmpty else { return }
         DispatchQueue.main.async { [store] in
             store.applyStatus(sessionId: sessionId, model: model, contextPct: contextPct, usageBars: Array(bars.prefix(3)))

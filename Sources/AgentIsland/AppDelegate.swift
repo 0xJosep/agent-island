@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import Sparkle
 import SwiftUI
 
@@ -90,14 +91,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let agents = codex == .notConnected ? "Claude Code and Codex sessions" : "Claude Code sessions"
         let alert = NSAlert()
         alert.messageText = "Connect your agents?"
-        alert.informativeText = "Agent Island adds hook entries so your \(agents) appear on the island — finishes, questions, and permission prompts. Existing settings are preserved and a backup is made first. You can disconnect any time in Settings."
+        alert.informativeText = "Agent Island adds hook entries so your \(agents) appear on the island — finishes, questions, and permission prompts. Existing settings are preserved and a backup is made first. Agent Island will also start at login. You can change both any time in Settings."
         alert.addButton(withTitle: "Connect")
         alert.addButton(withTitle: "Not Now")
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn {
             if claude == .notConnected { _ = try? AgentSetup.connectClaude() }
             if codex == .notConnected { _ = try? AgentSetup.connectCodex() }
+            try? SMAppService.mainApp.register()
         }
+    }
+
+    @objc private func openInspector() {
+        EventInspectorWindowController.shared.open()
     }
 
     private func takeOverPort() {
@@ -130,6 +136,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let testItem = NSMenuItem(title: "Send Test Event", action: #selector(sendTestEvent), keyEquivalent: "")
         testItem.target = self
         menu.addItem(testItem)
+        let inspectorItem = NSMenuItem(title: "Event Inspector…", action: #selector(openInspector), keyEquivalent: "i")
+        inspectorItem.target = self
+        menu.addItem(inspectorItem)
         if let updater {
             let updateItem = NSMenuItem(
                 title: "Check for Updates…",

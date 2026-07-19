@@ -12,6 +12,11 @@ let package = Package(
             name: "AgentIsland",
             dependencies: [.product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/AgentIsland"
+        ),
+        .testTarget(
+            name: "AgentIslandTests",
+            dependencies: ["AgentIsland"],
+            path: "Tests/AgentIslandTests"
         )
     ]
 )
