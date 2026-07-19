@@ -48,6 +48,8 @@ struct SettingsView: View {
     @AppStorage("finishedCollapseSeconds") private var finishedCollapseSeconds = 6.0
     @AppStorage("needsInputCollapseSeconds") private var needsInputCollapseSeconds = 8.0
     @AppStorage("quietWhenFocused") private var quietWhenFocused = true
+    @State private var claudeStatus = AgentSetup.claudeStatus()
+    @State private var codexStatus = AgentSetup.codexStatus()
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -93,6 +95,29 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            Section("Connect agents") {
+                agentRow(name: "Claude Code", status: claudeStatus) {
+                    if claudeStatus == .connected {
+                        _ = try? AgentSetup.disconnectClaude()
+                    } else {
+                        _ = try? AgentSetup.connectClaude()
+                    }
+                    claudeStatus = AgentSetup.claudeStatus()
+                }
+                if codexStatus != .notInstalled {
+                    agentRow(name: "Codex", status: codexStatus) {
+                        if codexStatus == .connected {
+                            _ = try? AgentSetup.disconnectCodex()
+                        } else {
+                            _ = try? AgentSetup.connectCodex()
+                        }
+                        codexStatus = AgentSetup.codexStatus()
+                    }
+                }
+                Text("Writes hook entries to ~/.claude/settings.json — existing hooks are preserved. Takes effect in new sessions.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
             Section {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Agent Island \(appVersion)")
@@ -106,6 +131,29 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .preferredColorScheme(.dark)
+    }
+
+    private func agentRow(name: String, status: AgentSetup.Status, action: @escaping () -> Void) -> some View {
+        HStack {
+            Text(name)
+            Spacer()
+            statusLabel(status)
+                .font(.system(size: 11))
+            if status != .manualSetupNeeded {
+                Button(status == .connected ? "Disconnect" : "Connect", action: action)
+            }
+        }
+    }
+
+    private func statusLabel(_ status: AgentSetup.Status) -> Text {
+        switch status {
+        case .connected:
+            Text("Connected ✓").foregroundStyle(.green)
+        case .manualSetupNeeded:
+            Text("Manual setup needed").foregroundStyle(.orange)
+        default:
+            Text("Not connected").foregroundStyle(.secondary)
+        }
     }
 }
 

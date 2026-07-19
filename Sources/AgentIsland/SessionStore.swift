@@ -47,6 +47,7 @@ struct PermissionItem: Identifiable, Equatable {
     let sessionId: String
     let title: String
     let detail: String
+    let command: String
 }
 
 struct UsageBar: Equatable {

@@ -109,15 +109,15 @@ final class EventServer {
         }
         let id = UUID().uuidString
         let toolName = json["tool_name"] as? String ?? "a tool"
-        let detail = Self.toolSummary(
-            name: toolName,
-            input: json["tool_input"] as? [String: Any] ?? [:]
-        )
+        let toolInput = json["tool_input"] as? [String: Any] ?? [:]
+        let detail = Self.toolSummary(name: toolName, input: toolInput)
+        let command = toolName == "Bash" ? (toolInput["command"] as? String ?? "") : ""
         let item = PermissionItem(
             id: id,
             sessionId: sessionId,
             title: toolName,
-            detail: detail
+            detail: detail,
+            command: command
         )
         DispatchQueue.main.async { [weak self, store] in
             if store.frontmostMatches(sessionId) {
@@ -153,20 +153,45 @@ final class EventServer {
         case "allow", "deny":
             body = #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"\#(decision)"}}}"#
         case "allow_always":
-            body = Self.allowAlwaysBody(toolName: entry.toolName)
+            body = Self.addRuleBody(entry.toolName)
         default:
-            body = "{}"
+            if decision.hasPrefix("allow_rule:") {
+                body = Self.addRuleBody(String(decision.dropFirst("allow_rule:".count)))
+            } else {
+                body = "{}"
+            }
         }
         Self.send(entry.connection, body: body)
     }
 
-    private static func allowAlwaysBody(toolName: String) -> String {
+    static func scopeOptions(toolName: String, command: String) -> [(label: String, decision: String)] {
+        guard toolName == "Bash" else {
+            return [("Always allow \(toolName)", "allow_always")]
+        }
+        var options: [(label: String, decision: String)] = []
+        let tokens = command.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        let safe = { (token: String) in !token.contains("(") && !token.contains(")") }
+        if let token1 = tokens.first, safe(token1) {
+            if tokens.count > 1 {
+                let token2 = tokens[1]
+                if safe(token2), !token2.hasPrefix("-"), !token2.contains("/") {
+                    options.append(("Always allow \(token1) \(token2) *", "allow_rule:Bash(\(token1) \(token2) *)"))
+                }
+            }
+            options.append(("Always allow \(token1) *", "allow_rule:Bash(\(token1) *)"))
+        }
+        options.append(("Always allow all Bash", "allow_always"))
+        var seen = Set<String>()
+        return options.filter { seen.insert($0.decision).inserted }
+    }
+
+    private static func addRuleBody(_ ruleContent: String) -> String {
         let decision: [String: Any] = [
             "behavior": "allow",
             "updatedPermissions": [
                 [
                     "type": "addRules",
-                    "rules": ["allow \(toolName)"]
+                    "rules": ["allow \(ruleContent)"]
                 ]
             ]
         ]

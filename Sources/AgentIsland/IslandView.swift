@@ -135,9 +135,7 @@ struct IslandView: View {
                 actionButton(position == 0 ? "Allow  ⌃⌥A" : "Allow", tint: .green) {
                     store.resolvePermission(id: permission.id, decision: "allow")
                 }
-                actionButton("Always allow", tint: .teal) {
-                    store.resolvePermission(id: permission.id, decision: "allow_always")
-                }
+                alwaysAllowControl(permission)
                 actionButton(position == 0 ? "Deny  ⌃⌥D" : "Deny", tint: .red) {
                     store.resolvePermission(id: permission.id, decision: "deny")
                 }
@@ -156,6 +154,36 @@ struct IslandView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.orange.opacity(0.35), lineWidth: 1)
         )
+    }
+
+    @ViewBuilder
+    private func alwaysAllowControl(_ permission: PermissionItem) -> some View {
+        let options = EventServer.scopeOptions(toolName: permission.title, command: permission.command)
+        if options.count == 1 {
+            actionButton("Always allow", tint: .teal) {
+                store.resolvePermission(id: permission.id, decision: options[0].decision)
+            }
+        } else {
+            Menu {
+                ForEach(options, id: \.decision) { option in
+                    Button(option.label) {
+                        store.resolvePermission(id: permission.id, decision: option.decision)
+                    }
+                }
+            } label: {
+                Text("Always allow ▾")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.teal.opacity(0.35)))
+                    .overlay(Capsule().stroke(Color.teal.opacity(0.6), lineWidth: 1))
+            }
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(.plain)
+            .fixedSize()
+        }
     }
 
     private func actionButton(_ label: String, tint: Color, action: @escaping () -> Void) -> some View {
