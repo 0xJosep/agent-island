@@ -21,11 +21,13 @@ final class Chiptune {
         format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: format)
-        engine.mainMixerNode.outputVolume = 0.6
+        engine.mainMixerNode.outputVolume = Float(Settings.shared.soundVolume)
         try? engine.start()
     }
 
     func play(_ notes: [(Double, Double)], amplitude: Float = 0.14) {
+        guard Settings.shared.soundsEnabled else { return }
+        engine.mainMixerNode.outputVolume = Float(Settings.shared.soundVolume)
         if !engine.isRunning {
             try? engine.start()
         }

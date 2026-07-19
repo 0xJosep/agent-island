@@ -147,12 +147,12 @@ final class SessionStore: ObservableObject {
         switch event.kind {
         case "finished":
             if !frontmostMatches(event.id) {
-                pop(collapseAfter: 6)
+                pop(collapseAfter: Settings.shared.finishedCollapseSeconds)
                 chirp(Chiptune.victory)
             }
         case "needs_input":
             if !frontmostMatches(event.id) {
-                pop(collapseAfter: 8)
+                pop(collapseAfter: Settings.shared.needsInputCollapseSeconds)
                 chirp(Chiptune.attention)
             }
         case "resumed":
@@ -163,6 +163,7 @@ final class SessionStore: ObservableObject {
     }
 
     func frontmostMatches(_ sessionId: String) -> Bool {
+        guard Settings.shared.quietWhenFocused else { return false }
         guard let session = sessions.first(where: { $0.id == sessionId }),
               !session.termBundleId.isEmpty,
               let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
@@ -276,6 +277,7 @@ final class SessionStore: ObservableObject {
     }
 
     private func chirp(_ melody: [(Double, Double)]) {
+        guard Settings.shared.soundsEnabled else { return }
         guard Date().timeIntervalSince(lastSound) > 2 else { return }
         lastSound = Date()
         Chiptune.shared.play(melody)

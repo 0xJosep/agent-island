@@ -33,6 +33,7 @@ install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/Mac
 cp "$REPO/scripts/agent-island-hook.sh" \
    "$REPO/scripts/agent-island-permission.sh" \
    "$REPO/scripts/agent-island-statusline.sh" \
+   "$REPO/scripts/island-run.sh" \
    "$APP/Contents/Resources/scripts/"
 
 codesign --force --deep -s - "$APP"

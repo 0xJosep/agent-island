@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag matches Info.plist version
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          PLIST_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' packaging/Info.plist)"
+          if [ "$TAG" != "v$PLIST_VERSION" ]; then
+            echo "::error::Tag $TAG does not match packaging/Info.plist CFBundleShortVersionString $PLIST_VERSION (expected tag v$PLIST_VERSION)"
+            exit 1
+          fi
+
+      - name: Resolve Swift package dependencies
+        run: swift package resolve
+
+      - name: Build universal dmg
+        run: bash scripts/make-dmg.sh
+
+      - name: Generate signed appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          KEY_FILE="$RUNNER_TEMP/sparkle-ed-key"
+          umask 077
+          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" > "$KEY_FILE"
+          SPARKLE_ED_KEY_FILE="$KEY_FILE" bash scripts/make-appcast.sh
+          rm -P -f "$KEY_FILE"
+
+      - name: Commit appcast to main
+        run: |
+          cp appcast.xml "$RUNNER_TEMP/appcast.xml"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -f -B main origin/main
+          cp "$RUNNER_TEMP/appcast.xml" appcast.xml
+          git add appcast.xml
+          git diff --cached --quiet || git commit -m "Update appcast for $GITHUB_REF_NAME"
+          git push origin main
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          gh release create "$TAG" "dist/AgentIsland-$TAG.dmg" --title "Agent Island $TAG" --generate-notes

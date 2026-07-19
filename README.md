@@ -72,6 +72,18 @@ curl -X POST http://127.0.0.1:4144/event -H 'Content-Type: application/json' \
 
 `type`: `started` · `working` · `finished` · `needs_input` · `idle` · `ended`
 
+## Put anything on the island
+
+Not everything worth watching is an agent. Wrap any long-running command with `island-run.sh` and it shows up on your notch — orange while it runs, a green pop when it lands, a red `!` if it fails:
+
+```sh
+alias irun="/Applications/Agent Island.app/Contents/Resources/scripts/island-run.sh"
+irun npm run build
+irun --name deploy ./deploy.sh prod
+```
+
+Builds, deploys, and test suites report to your notch like any agent.
+
 ## For tinkerers
 
 It's a small Swift/SwiftUI app — no Xcode project, no asset catalogs, sprites and sounds are generated in code.

@@ -116,9 +116,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(updateItem)
         }
         menu.addItem(.separator())
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
         menu.addItem(NSMenuItem(title: "Quit AgentIsland", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
         statusItem = item
+    }
+
+    @objc private func openSettings() {
+        SettingsWindowController.shared.open()
     }
 
     @objc private func sendTestEvent() {

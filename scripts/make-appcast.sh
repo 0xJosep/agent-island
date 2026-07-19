@@ -9,7 +9,11 @@ SIGN="$REPO/.build/artifacts/sparkle/Sparkle/bin/sign_update"
 
 [ -f "$DMG" ] || { echo "dmg not found: $DMG (run make-dmg.sh first)" >&2; exit 1; }
 
-SIGNATURE="$("$SIGN" "$DMG")"
+if [ -n "${SPARKLE_ED_KEY_FILE:-}" ]; then
+  SIGNATURE="$("$SIGN" --ed-key-file "$SPARKLE_ED_KEY_FILE" "$DMG")"
+else
+  SIGNATURE="$("$SIGN" "$DMG")"
+fi
 PUBDATE="$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"
 URL="https://github.com/0xJosep/agent-island/releases/download/v$VERSION/AgentIsland-v$VERSION.dmg"
 
