@@ -62,6 +62,7 @@ final class SessionStore: ObservableObject {
 
     private var collapseWork: DispatchWorkItem?
     private var lastSound = Date.distantPast
+    private var tombstones: [String: Date] = [:]
 
     var isOpen: Bool {
         pinnedOpen || !permissions.isEmpty || (hovering && !sessions.isEmpty)
@@ -69,9 +70,17 @@ final class SessionStore: ObservableObject {
 
     func apply(_ event: AgentEvent) {
         if event.kind == "ended" {
+            tombstones[event.id] = Date()
             sessions.removeAll { $0.id == event.id }
             permissions.removeAll { $0.sessionId == event.id }
             if sessions.isEmpty { pinnedOpen = false }
+            return
+        }
+
+        if !sessions.contains(where: { $0.id == event.id }),
+           let ended = tombstones[event.id],
+           Date().timeIntervalSince(ended) < 30,
+           !["idle", "started", "resumed"].contains(event.kind) {
             return
         }
 
@@ -122,13 +131,13 @@ final class SessionStore: ObservableObject {
 
         switch event.kind {
         case "finished":
-            pop(autoCollapse: true)
+            pop(collapseAfter: 6)
             play("Glass")
         case "needs_input":
-            pop(autoCollapse: false)
+            pop(collapseAfter: 8)
             play("Ping")
         case "resumed":
-            if !hasAttentionItems { scheduleCollapse(after: 0.6) }
+            if permissions.isEmpty { scheduleCollapse(after: 0.6) }
         default:
             break
         }
@@ -151,6 +160,7 @@ final class SessionStore: ObservableObject {
             sort()
         }
         collapseWork?.cancel()
+        pinnedOpen = true
         play("Ping")
     }
 
@@ -163,7 +173,7 @@ final class SessionStore: ObservableObject {
             }
         }
         sort()
-        if !hasAttentionItems { scheduleCollapse(after: 1.5) }
+        if permissions.isEmpty { scheduleCollapse(after: 1.5) }
     }
 
     func dropPermission(id: String) {
@@ -173,7 +183,7 @@ final class SessionStore: ObservableObject {
                 sessions[i].status = .working
             }
         }
-        if !hasAttentionItems { scheduleCollapse(after: 1.5) }
+        if permissions.isEmpty { scheduleCollapse(after: 1.5) }
     }
 
     func tap(_ session: AgentSession) {
@@ -190,12 +200,9 @@ final class SessionStore: ObservableObject {
         NSRunningApplication.runningApplications(withBundleIdentifier: session.termBundleId).first?.activate()
     }
 
-    private var hasAttentionItems: Bool {
-        !permissions.isEmpty || sessions.contains { $0.status == .needsInput }
-    }
-
     private func prune() {
         sessions.removeAll { Date().timeIntervalSince($0.updatedAt) > 7200 }
+        tombstones = tombstones.filter { Date().timeIntervalSince($0.value) < 60 }
     }
 
     private func sort() {
@@ -205,17 +212,17 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    private func pop(autoCollapse: Bool) {
+    private func pop(collapseAfter delay: TimeInterval) {
         collapseWork?.cancel()
         pinnedOpen = true
-        if autoCollapse { scheduleCollapse(after: 6) }
+        scheduleCollapse(after: delay)
     }
 
     private func scheduleCollapse(after delay: TimeInterval) {
         collapseWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            if self.hasAttentionItems { return }
+            if !self.permissions.isEmpty { return }
             if self.hovering {
                 self.scheduleCollapse(after: 2)
                 return
