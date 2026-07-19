@@ -6,6 +6,9 @@ Your AI agents live in terminals. You live everywhere else. Agent Island turns t
 
 No dock icon. No window to manage. Just your notch, doing something useful for once.
 
+<p align="center"><img src="docs/pill.png" width="300" alt="Collapsed island: pixel invader and status dots around the notch"></p>
+<p align="center"><img src="docs/screenshot.png" width="442" alt="Expanded island: permission card with Allow / Always allow / Deny, live sessions with pixel sprites, usage meters"></p>
+
 ## Why you'll love it
 
 - 🕹️ **8-bit soul** — a pixel invader marches while agents work, a green check sparkles when they finish, a red `!` blinks when they need you, and every event has its own chiptune melody, synthesized live like it's 1985.
@@ -14,8 +17,6 @@ No dock icon. No window to manage. Just your notch, doing something useful for o
 - 👀 **Everything at a glance** — hover the notch for every active session: what tool it's running right now, subagent counts, context-window usage, and your Claude usage meters.
 - 🤖 **Plays with your whole crew** — Claude Code and Codex out of the box; anything else joins with a single JSON POST.
 - 🔄 **Updates itself** — signed auto-updates via Sparkle. Install once, stay current.
-
-<!-- screenshot: docs/screenshot.png -->
 
 ## Get it
 
